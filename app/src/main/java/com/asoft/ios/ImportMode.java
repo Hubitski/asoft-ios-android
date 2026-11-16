@@ -18,8 +18,8 @@ final class ImportMode {
     /** Unset: the engine's default (lazy IOSurface views on in the compatibility mode); LISTS turns them off. */
     static final String LAZY_MAPPINGS = "REIMS_VGPU_LAZY_MAPPINGS";
     static final String LISTS = "lists";
-    /** A file in files/run: a QEMU ended on a host-memory refusal once, so the next starts run with LISTS. */
-    static final String MARKER = "import-refused-once";
+    /** A file in files/run: a QEMU ended on a host-memory refusal once, so the next starts run with LISTS (named by the test build: the one of an earlier test build does not carry over). */
+    static final String MARKER = "import-refused-once-mali2";
 
     static File marker(File runDir) {
         return new File(runDir, MARKER);

@@ -68,7 +68,7 @@ public class ImportModeTest {
 
     @Test
     public void theMarkerIsAFileInTheRunFolder() {
-        assertEquals(new File("run", "import-refused-once"), ImportMode.marker(new File("run")));
+        assertEquals(new File("run", "import-refused-once-mali2"), ImportMode.marker(new File("run")));
     }
 
     @Test
@@ -78,7 +78,7 @@ public class ImportModeTest {
         env.putAll(ImportMode.envAdditions(true, false, NO_FILE));
         assertEquals("gpu: import probe on, lazy surface views default (on)", ImportMode.describe(env, false));
         env.putAll(ImportMode.envAdditions(true, true, NO_FILE));
-        assertEquals("gpu: import probe on, lazy surface views off (REIMS_VGPU_LAZY_MAPPINGS=lists), import-refused-once is set",
+        assertEquals("gpu: import probe on, lazy surface views off (REIMS_VGPU_LAZY_MAPPINGS=lists), import-refused-once-mali2 is set",
                 ImportMode.describe(env, true));
         env.put("REIMS_VGPU_LAZY_MAPPINGS", "on");
         assertTrue(ImportMode.describe(env, true).contains("REIMS_VGPU_LAZY_MAPPINGS=on"));
@@ -86,10 +86,10 @@ public class ImportModeTest {
 
     @Test
     public void theTestBuildsVersionNameIsTheReleasesVersionToTheUpdateCheck() {
-        // 0.1.6-mali1 is not older than the 0.1.6 release (no notice for the build that is the release's own), and
+        // 0.1.6-mali2 is not older than the 0.1.6 release (no notice for the build that is the release's own), and
         // not newer than the next one
-        assertFalse(UpdateCheck.newer("v0.1.6", "0.1.6-mali1"));
-        assertTrue(UpdateCheck.newer("v0.1.7", "0.1.6-mali1"));
+        assertFalse(UpdateCheck.newer("v0.1.6", "0.1.6-mali2"));
+        assertTrue(UpdateCheck.newer("v0.1.7", "0.1.6-mali2"));
     }
 
     // -- the stop's retry
