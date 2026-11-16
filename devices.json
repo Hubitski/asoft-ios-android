@@ -18,6 +18,14 @@
       "note": "one report: ran 10 min at the 2x screen, up to 46 fps; iOS 16 and watchOS not reported yet"
     },
     {
+      "soc": "Kirin",
+      "gpu": "",
+      "os": ["ios16"],
+      "state": "works",
+      "phone": "HUAWEI LMR-LX9",
+      "note": "one report: iOS 16 ran 10 min, up to 25 fps; the setup took 4 h 18 min (first start 2 h 20 min); the app reads only \"Kirin\" as this phone's SoC, so the row covers every phone that reports it"
+    },
+    {
       "soc": "",
       "gpu": "Mali",
       "os": ["ios26", "watch"],
