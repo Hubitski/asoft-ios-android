@@ -1716,7 +1716,7 @@ final class Guest {
         String why = lastWords(c);
         // the test build's retry after the engine refused a host-memory import: this is asked every second while the
         // guest is stopped, so the decision rests on the marker as this QEMU started (importMarkerAtStart)
-        CrashText.ImportRefusal refusal = CrashText.importRefusal(compat26, importMarkerAtStart, tail);
+        CrashText.ImportRefusal refusal = CrashText.importRefusal(compat26 && system26, importMarkerAtStart, tail);
         String gpu = CrashText.graphicsStop(tail, why, refusal.sentence);
         if (refusal.writeMarker) {
             File marker = ImportMode.marker(runDir(c));
@@ -2321,11 +2321,14 @@ final class Guest {
         system26 = sys;
         // The compatibility mode's engine switches (ImportMode: the host-import probe, and after a refusal the lazy
         // views off). After the test file's env. lines, which keep what they set
-        importMarkerAtStart = compat26 && ImportMode.marker(run).isFile();
-        env.putAll(ImportMode.envAdditions(compat26, importMarkerAtStart, ov));
+        // only the phone's own driver (sys): a Snapdragon's Turnip compatibility mode keeps the environment it had
+        importMarkerAtStart = compat26 && sys && ImportMode.marker(run).isFile();
+        env.putAll(ImportMode.envAdditions(compat26 && sys, importMarkerAtStart, ov));
         if (compat26) {
             AppLog.note(c, "gpu: compatibility mode (no sparse binds from host memory)");
-            AppLog.note(c, ImportMode.describe(env, importMarkerAtStart));
+            if (sys) {
+                AppLog.note(c, ImportMode.describe(env, importMarkerAtStart));
+            }
         }
         if (sys) {
             AppLog.note(c, "gpu: the phone's own Vulkan driver (experimental), compatibility mode");
