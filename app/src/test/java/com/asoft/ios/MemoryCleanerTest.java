@@ -29,6 +29,18 @@ public class MemoryCleanerTest {
     }
 
     @Test
+    public void theDumpsysSummarySaysWhatIsNotInTheTopList() {
+        String d = "Total RAM: 11,700,000K (status normal)\n"
+                + "Free RAM: 4,900,000K (cached 1,000,000K)\n"
+                + "Used RAM: 5,500,000K (5,000,000K kernel)\n"
+                + "Lost RAM: 1,200,000K\n"
+                + "ZRAM: 2,000,000K physical used for 4,000,000K in swap (6,000,000K total swap)\n";
+        assertEquals("Used 5371 MB · Free 4785 MB · Lost 1172 MB · ZRAM 1953 MB (swap 3906 MB)",
+                MemoryCleaner.summaryLines(d));
+        assertEquals("", MemoryCleaner.summaryLines("nothing here"));
+    }
+
+    @Test
     public void theForceButtonAppearsWhenMostOfTheRamIsInUse() {
         assertTrue(MemoryBeforeStart.forceButton(1_000, 399));      // 60.1 % used
         assertFalse(MemoryBeforeStart.forceButton(1_000, 400));     // exactly 60 %

@@ -222,7 +222,7 @@ final class MemoryCleaner {
      */
     static long[] freeNow(Context c, boolean force, int timeoutMs) throws java.io.IOException {
         ActivityManager am = c.getSystemService(ActivityManager.class);
-        long before = availableMb(am);
+        long before = Helper.available(c) >> 20;
         if (WirelessAdb.paired(c)) {
             if (force) {
                 Set<String> apps = aggressiveTargets(c);
@@ -241,24 +241,131 @@ final class MemoryCleaner {
             }
         }
         sleep(1500);
-        return new long[] {before, availableMb(am)};
+        // the same source as the sheet's "Free X of Y" (MemAvailable): ActivityManager's number can differ
+        return new long[] {before, Helper.available(c) >> 20};
+    }
+
+    /**
+     * The heavy system apps a force-stop may end without breaking the phone's own screen: One UI's capture,
+     * Bixby, the stores, the game services, Google's background apps. systemui, system, surfaceflinger, the
+     * launcher, the keyboard, Settings and this app are never in it.
+     */
+    static final String[] HEAVY_SYSTEM = {
+            "com.samsung.android.app.smartcapture",
+            "com.samsung.android.app.spage",
+            "com.samsung.android.bixby.agent",
+            "com.samsung.android.bixby.wakeup",
+            "com.samsung.android.oneconnect",
+            "com.sec.android.app.samsungapps",
+            "com.samsung.android.game.gamehome",
+            "com.samsung.android.game.gos",
+            "com.samsung.android.game.gametools",
+            "com.samsung.android.app.tips",
+            "com.samsung.android.voc",
+            "com.samsung.android.app.reminder",
+            "com.sec.android.app.sbrowser",
+            "com.google.android.apps.turbo",
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.apps.photos",
+            "com.google.android.youtube",
+            "com.google.android.gm",
+            "com.google.android.apps.maps",
+    };
+
+    /** One round of force-stop over {@link #HEAVY_SYSTEM}, for the sheet's extreme button; {before, after} MB. */
+    static long[] freeSystem(Context c, int timeoutMs) throws java.io.IOException {
+        long before = Helper.available(c) >> 20;
+        StringBuilder b = new StringBuilder("for p in");
+        for (String p : HEAVY_SYSTEM) {
+            b.append(' ').append(p);
+        }
+        b.append("; do am force-stop \"$p\"; done");
+        WirelessAdb.shell(c, b.toString(), Math.max(timeoutMs, AGGRESSIVE_TIMEOUT_MS));
+        sleep(1500);
+        return new long[] {before, Helper.available(c) >> 20};
     }
 
     /** A process line of "dumpsys meminfo": "  1,228,800K: com.foo (pid 12 / activities)". */
     private static final java.util.regex.Pattern TOP =
             java.util.regex.Pattern.compile("^\\s*([0-9,]+)K:\\s+(.+?)(?:\\s+\\(pid.*)?$");
 
-    /** What the memory sheet shows: the top @n processes by PSS, or why there is no list (not paired). */
-    static String topText(Context c, int n, int timeoutMs) {
+    /** The memory sheet's dumpsys: the top processes and the Total/Free/Used/Lost/ZRAM summary. */
+    static final class Info {
+        String top = "", summary = "";
+    }
+
+    /** What the memory sheet shows, from one "dumpsys meminfo"; without the pairing, only why there is none. */
+    static Info info(Context c, int n, int timeoutMs) {
+        Info i = new Info();
         if (!WirelessAdb.paired(c)) {
-            return "Wireless debugging is not paired: the apps cannot be listed (the kill still ends this app's "
+            i.top = "Wireless debugging is not paired: the apps cannot be listed (the kill still ends this app's "
                     + "background processes on Android 13 and older).";
+            return i;
         }
         try {
-            return topLines(WirelessAdb.shell(c, "dumpsys meminfo", timeoutMs), n);
+            String d = WirelessAdb.shell(c, "dumpsys meminfo", timeoutMs);
+            i.top = topLines(d, n);
+            i.summary = summaryLines(d);
+            return i;
         } catch (java.io.IOException e) {
-            return "Could not list the apps: " + e.getMessage();
+            i.top = "Could not list the apps: " + e.getMessage();
+            return i;
         }
+    }
+
+    /** "Total RAM: 11,700,000K": the summary line of dumpsys meminfo, in the list's MB (KiB). */
+    private static final java.util.regex.Pattern RAM =
+            java.util.regex.Pattern.compile("^\\s*(Total|Free|Used|Lost) RAM:\\s*([0-9,]+)K", java.util.regex.Pattern.MULTILINE);
+    private static final java.util.regex.Pattern ZRAM =
+            java.util.regex.Pattern.compile("^\\s*ZRAM:\\s*([0-9,]+)K physical used for ([0-9,]+)K",
+                    java.util.regex.Pattern.MULTILINE);
+
+    /** "Used 5371 MB · Free 4785 MB · Lost 1172 MB · ZRAM 1953 MB (swap 3906 MB)", what is not in the top list. */
+    static String summaryLines(String dumpsys) {
+        if (dumpsys == null) {
+            return "";
+        }
+        long total = -1, free = -1, used = -1, lost = -1, zram = -1, swap = -1;
+        java.util.regex.Matcher m = RAM.matcher(dumpsys);
+        while (m.find()) {
+            long kb;
+            try {
+                kb = Long.parseLong(m.group(2).replace(",", ""));
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            switch (m.group(1)) {
+                case "Total": total = kb; break;
+                case "Free": free = kb; break;
+                case "Used": used = kb; break;
+                default: lost = kb; break;
+            }
+        }
+        java.util.regex.Matcher z = ZRAM.matcher(dumpsys);
+        if (z.find()) {
+            try {
+                zram = Long.parseLong(z.group(1).replace(",", ""));
+                swap = Long.parseLong(z.group(2).replace(",", ""));
+            } catch (NumberFormatException ignored) {
+                // no ZRAM line
+            }
+        }
+        StringBuilder b = new StringBuilder();
+        if (used >= 0) b.append("Used ").append(mb(used)).append(" MB");
+        if (free >= 0) b.append(b.length() > 0 ? " · " : "").append("Free ").append(mb(free)).append(" MB");
+        if (lost >= 0) b.append(b.length() > 0 ? " · " : "").append("Lost ").append(mb(lost)).append(" MB");
+        if (zram >= 0) {
+            b.append(b.length() > 0 ? " · " : "").append("ZRAM ").append(mb(zram)).append(" MB");
+            if (swap >= 0) b.append(" (swap ").append(mb(swap)).append(" MB)");
+        }
+        if (b.length() == 0 && total >= 0) {
+            b.append("Total ").append(mb(total)).append(" MB");
+        }
+        return b.toString();
+    }
+
+    private static long mb(long kb) {
+        return Math.round(kb / 1024.0);
     }
 
     /** The first @n process lines of @dumpsys's "Total PSS by process" (a test without adb). */
