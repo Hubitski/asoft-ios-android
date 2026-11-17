@@ -26,6 +26,22 @@
       "note": "one report: iOS 16 ran 10 min, up to 25 fps; the setup took 4 h 18 min (first start 2 h 20 min); the app reads only \"Kirin\" as this phone's SoC, so the row covers every phone that reports it"
     },
     {
+      "soc": "SM7675",
+      "gpu": "",
+      "os": ["ios16"],
+      "state": "works",
+      "phone": "Xiaomi Pad 7 2410CRP4CG",
+      "note": "one report: iOS 16 ran 15 min, up to 21 fps; the setup took 1 h 19 min (first start 37 min)"
+    },
+    {
+      "soc": "s5e8845",
+      "gpu": "",
+      "os": ["ios16"],
+      "state": "works",
+      "phone": "Samsung SM-A556B",
+      "note": "one report: iOS 16 ran 15 min, up to 12 fps, the reporter says it lags; the setup took 5 h 35 min (disk build 4 h 22 min, first start 1 h 1 min)"
+    },
+    {
       "soc": "",
       "gpu": "Mali",
       "os": ["ios26", "watch"],

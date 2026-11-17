@@ -8,6 +8,8 @@ same list in words.
 | Samsung SM-S938B (Galaxy S25 Ultra) | SM8750 | Adreno 830 | works | works | works | Galaxy S25 Ultra |
 | Xiaomi 25102PCBEG | SM8850 | Adreno 840 | works | not reported | not reported | One report: ran 10 minutes at the 2x screen, up to 46 fps. |
 | HUAWEI LMR-LX9 | Kirin | not used by iOS 16 | not reported | works | not reported | One report: iOS 16 ran 10 minutes, up to 25 fps; setup 4 h 18 min (first start 2 h 20 min). The app reads only "Kirin" as this phone's SoC, so the row covers every phone that reports it. |
+| Xiaomi Pad 7 2410CRP4CG | SM7675 | not used by iOS 16 | not reported | works | not reported | One report: iOS 16 ran 15 minutes, up to 21 fps; setup 1 h 19 min (first start 37 min). |
+| Samsung SM-A556B | s5e8845 | not used by iOS 16 | not reported | works | not reported | One report: iOS 16 ran 15 minutes, up to 12 fps, it lags; setup 5 h 35 min (disk build 4 h 22 min, first start 1 h 1 min). |
 | any phone with an ARM Mali GPU | any | Mali | fails | no GPU needed | fails | Most fail the GPU check (no VK_EXT_external_memory_host); one that passes runs, slowly so far. |
 | any phone with an Imagination PowerVR GPU | any | PowerVR | fails | no GPU needed | fails | The GPU check fails (no VK_EXT_external_memory_host); not supported yet. |
 | any phone with a Samsung Xclipse GPU | any | Xclipse | fails | no GPU needed | fails | The GPU check fails or the picture is wrong; not supported yet. |
