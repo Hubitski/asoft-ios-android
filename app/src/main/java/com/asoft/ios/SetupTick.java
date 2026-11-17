@@ -84,7 +84,21 @@ final class SetupTick {
     static String hostText(long lateMs, int interactive, int idle, int powerSave, int whitelisted, int charging, int thermal) {
         return String.format(Locale.ROOT, "loop late max %d s, screen %s, idle %s, power-save %s, battery whitelist %s, charging %s, thermal %s",
                 (Math.max(0, lateMs) + 500) / 1000, interactive < 0 ? "?" : interactive == 0 ? "off" : "on", yn(idle), yn(powerSave),
-                yn(whitelisted), yn(charging), thermal < 0 ? "?" : String.valueOf(thermal));
+                yn(whitelisted), yn(charging), thermal < 0 ? "?" : thermal + " (" + thermalName(thermal) + ")");
+    }
+
+    /** PowerManager's THERMAL_STATUS_* in words: the number alone says little (2 = moderate is common on a cool phone). */
+    static String thermalName(int t) {
+        switch (t) {
+            case 0: return "none";
+            case 1: return "light";
+            case 2: return "moderate";
+            case 3: return "severe";
+            case 4: return "critical";
+            case 5: return "emergency";
+            case 6: return "shutdown";
+            default: return "?";
+        }
     }
 
     /** The loop's saved stall files to send: the files of the @stalls highest numbers among @names ("wallpaper-serial-stall-3.txt"). */

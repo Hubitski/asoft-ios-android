@@ -88,6 +88,14 @@ public class SetupTickTest {
     }
 
     @Test
+    public void theThermalStatusHasWords() {
+        assertEquals("none", SetupTick.thermalName(0));
+        assertEquals("moderate", SetupTick.thermalName(2));
+        assertEquals("severe", SetupTick.thermalName(3));
+        assertEquals("?", SetupTick.thermalName(9));
+    }
+
+    @Test
     public void aHealthyBootHasNoJump() {
         SetupTick.Console c = SetupTick.scanConsole(amfi(46) + "\"AppleSEPKeyStore\":pid:0,:2979: x\n" + amfi(1246), 0);
         assertEquals(1246, c.maxPid);

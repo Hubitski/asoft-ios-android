@@ -1644,7 +1644,9 @@ final class PhoneSetup26 {
         } catch (RuntimeException ignored) {
             // a line without them is no harm
         }
-        return SetupTick.hostText(lateMs, on, idle, save, white, charging(c) ? 1 : 0, thermal(c)) + ", " + HostCpus.text();
+        float batteryC = Battery.temperatureC(c);
+        return SetupTick.hostText(lateMs, on, idle, save, white, charging(c) ? 1 : 0, thermal(c)) + ", " + HostCpus.text()
+                + (Float.isNaN(batteryC) ? "" : String.format(java.util.Locale.ROOT, ", battery %.1f C", batteryC));
     }
 
     static boolean shouldHold(Context c) {
