@@ -252,6 +252,9 @@ final class MemoryCleaner {
      */
     static final String[] HEAVY_SYSTEM = {
             "com.samsung.android.app.smartcapture",
+            "com.samsung.android.smartsuggestions",
+            "com.samsung.android.waterplugin",
+            "com.samsung.android.service.aircommand",
             "com.samsung.android.app.spage",
             "com.samsung.android.bixby.agent",
             "com.samsung.android.bixby.wakeup",
