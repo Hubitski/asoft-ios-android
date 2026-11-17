@@ -193,6 +193,8 @@ final class MemoryCleaner {
         } finally {
             busy.set(false);
         }
+        // and the 90 s rounds go on while this boot's QEMU runs
+        start(c);
     }
 
     /** What the aggressive round force-stops: every app a person starts, but Settings too (the way back). */
@@ -211,6 +213,86 @@ final class MemoryCleaner {
             b.append(' ').append(p);
         }
         return b.append("; do am force-stop \"$p\"; done").toString();
+    }
+
+    /**
+     * One round on the user's request (the memory sheet before a start): am kill-all, and with @force the
+     * force-stop of every app a person starts. Returns {available before, after} in MB; through the pairing
+     * when there is one, else the app's own killBackgroundProcesses (Android 13 and older, cached processes).
+     */
+    static long[] freeNow(Context c, boolean force, int timeoutMs) throws java.io.IOException {
+        ActivityManager am = c.getSystemService(ActivityManager.class);
+        long before = availableMb(am);
+        if (WirelessAdb.paired(c)) {
+            if (force) {
+                Set<String> apps = aggressiveTargets(c);
+                if (!apps.isEmpty()) {
+                    WirelessAdb.shell(c, forceStopCommand(apps), Math.max(timeoutMs, AGGRESSIVE_TIMEOUT_MS));
+                }
+            }
+            WirelessAdb.shell(c, "am kill-all", timeoutMs);
+        } else {
+            for (String p : others(c)) {
+                try {
+                    am.killBackgroundProcesses(p);
+                } catch (SecurityException ignored) {
+                    // the platform refuses it on Android 14+: the pairing is the way there
+                }
+            }
+        }
+        sleep(1500);
+        return new long[] {before, availableMb(am)};
+    }
+
+    /** A process line of "dumpsys meminfo": "  1,228,800K: com.foo (pid 12 / activities)". */
+    private static final java.util.regex.Pattern TOP =
+            java.util.regex.Pattern.compile("^\\s*([0-9,]+)K:\\s+(.+?)(?:\\s+\\(pid.*)?$");
+
+    /** What the memory sheet shows: the top @n processes by PSS, or why there is no list (not paired). */
+    static String topText(Context c, int n, int timeoutMs) {
+        if (!WirelessAdb.paired(c)) {
+            return "Wireless debugging is not paired: the apps cannot be listed (the kill still ends this app's "
+                    + "background processes on Android 13 and older).";
+        }
+        try {
+            return topLines(WirelessAdb.shell(c, "dumpsys meminfo", timeoutMs), n);
+        } catch (java.io.IOException e) {
+            return "Could not list the apps: " + e.getMessage();
+        }
+    }
+
+    /** The first @n process lines of @dumpsys's "Total PSS by process" (a test without adb). */
+    static String topLines(String dumpsys, int n) {
+        if (dumpsys == null) {
+            return "";
+        }
+        int at = dumpsys.indexOf("Total PSS by process:");
+        if (at < 0) {
+            return "";
+        }
+        StringBuilder b = new StringBuilder();
+        int got = 0;
+        for (String l : dumpsys.substring(at).split("\n")) {
+            java.util.regex.Matcher m = TOP.matcher(l);
+            if (m.matches()) {
+                if (got >= n) {
+                    break;
+                }
+                long kb;
+                try {
+                    kb = Long.parseLong(m.group(1).replace(",", ""));
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+                if (got++ > 0) {
+                    b.append('\n');
+                }
+                b.append(m.group(2).trim()).append(" — ").append(Math.round(kb / 1024.0)).append(" MB");
+            } else if (got > 0) {
+                break;      // the categories follow the processes
+            }
+        }
+        return b.toString();
     }
 
     private static void round(Context c, String what, int adbTimeoutMs) {

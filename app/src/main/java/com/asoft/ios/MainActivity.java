@@ -98,10 +98,17 @@ public class MainActivity extends Activity {
                 if (f.exists() && engineLog.getVisibility() == View.VISIBLE && advanced.getVisibility() == View.VISIBLE) {
                     String[] lines = new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8).split("\n");
                     int from = Math.max(0, lines.length - 30);
-                    engineLog.setText(String.join("\n", java.util.Arrays.copyOfRange(lines, from, lines.length)));
+                    String text = String.join("\n", java.util.Arrays.copyOfRange(lines, from, lines.length));
+                    // only a change draws again: setText every second re-laid the page out and pulled the scroll
+                    // position (and the selection) back to the log while it was being read
+                    if (!text.equals(engineLog.getText().toString())) {
+                        engineLog.setText(text);
+                    }
                 }
             } catch (IOException e) {
-                engineLog.setText(e.toString());
+                if (!e.toString().equals(engineLog.getText().toString())) {
+                    engineLog.setText(e.toString());
+                }
             }
             engineLog.postDelayed(this, 1000);
         }
@@ -432,7 +439,8 @@ public class MainActivity extends Activity {
         advanced.setPadding(dp(4), dp(12), dp(4), 0);
         box.addView(advanced);
         text(advanced, "Runs iOS-style code on this phone's CPU the way iOS 16 does here, and reports its speed: "
-                + "useful when trying another phone.", 13, DIM).setPadding(dp(14), 0, dp(14), dp(12));
+                + "useful when trying another phone. Its log opens with a tap; there it can be copied and shared.",
+                13, DIM).setPadding(dp(14), 0, dp(14), dp(12));
         TextView run = capsule("Run the engine test", v -> {
             EngineService.start(this, 2, 2, 120);
             engineLog.setVisibility(View.VISIBLE);
@@ -443,7 +451,11 @@ public class MainActivity extends Activity {
         advanced.addView(run, rlp);
         engineLog = text(advanced, "", 11, 0xffcfcfcf);
         engineLog.setTypeface(Typeface.MONOSPACE);
-        engineLog.setTextIsSelectable(true);
+        // the preview is not the place to select from: it is rewritten as the test writes, which cleared a
+        // selection after a second. A tap opens the same log in Logs, where it can be copied and shared.
+        engineLog.setTextIsSelectable(false);
+        engineLog.setOnClickListener(v -> startActivity(new Intent(this, LogsActivity.class)
+                .putExtra(LogsActivity.EXTRA_ITEM, LogsActivity.RUN + "engine")));
         engineLog.setPadding(dp(12), dp(10), dp(12), dp(10));
         engineLog.setBackground(round(0xff111113, 12));
         engineLog.setLayoutParams(top(new LinearLayout.LayoutParams(-1, -2), dp(12)));

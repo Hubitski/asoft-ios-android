@@ -62,22 +62,10 @@ final class LowMemory {
     }
 
     /**
-     * Runs @go; first, when memory is short for @need bytes, tells the user and lets them go on anyway or cancel.
-     * (The app's own memory freeing, MemoryCleaner, is the user's switch: its line is left to the setup screens.)
+     * Runs @go behind the memory sheet (MemoryBeforeStart): free of the phone's RAM, what the start takes, the
+     * apps that hold it, a one-tap kill-all and (when most of the RAM is in use) a force-stop, then Start.
      */
     static void askBeforeStart(Activity a, String what, long need, Runnable go) {
-        long avail = Helper.available(a);
-        if (!isShort(avail, need)) {
-            go.run();
-            return;
-        }
-        AppLog.note(a, String.format(Locale.ROOT, "low memory before a start: %.1f GB available, %s takes about %.1f GB",
-                avail / 1e9, what, need / 1e9));
-        new AlertDialog.Builder(a)
-                .setTitle("Memory is low")
-                .setMessage(message(what, avail, need))
-                .setPositiveButton("Start anyway", (d, w) -> go.run())
-                .setNegativeButton("Cancel", null)
-                .show();
+        MemoryBeforeStart.show(a, what, need, go);
     }
 }

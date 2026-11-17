@@ -61,6 +61,8 @@ final class RunLogs {
                 new File(run, "qemu.log"), LATIN1, true);
         item(out, "cmdline", "QEMU command line", "This run's QEMU arguments", new File(run, "cmdline.txt"),
                 StandardCharsets.UTF_8, true);
+        item(out, "engine", "Engine test log", "What the engine test measured (el0bench.log)",
+                new File(c.getExternalFilesDir(null), EngineService.LOG), StandardCharsets.UTF_8, false);
         item(out, "last-console", "Previous run: console", "The end of the boot before this one",
                 new File(log, "last-serial.txt"), LATIN1, false);
         item(out, "last-stderr", "Previous run: QEMU stderr", "The end of the boot before this one",
