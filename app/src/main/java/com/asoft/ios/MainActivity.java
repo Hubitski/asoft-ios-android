@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout box;
     private final Panel p26 = new Panel(Guest.IOS26), p16 = new Panel(Guest.IOS16), pWatch = new Panel(Guest.WATCH);
-    private TextView hint, powerWarn, freeRamValue, freeRamAggValue, wadbValue, updateValue, logsValue, footer, engineLog;
+    private TextView hint, powerWarn, freeRamValue, freeRamAggValue, setupScreenValue, wadbValue, updateValue, logsValue, footer, engineLog;
     private LinearLayout updateBar, advanced;
     private TextView updateText, updateNote, updateGet, updateDismiss;
     /**
@@ -422,6 +422,7 @@ public class MainActivity extends Activity {
         LinearLayout settings = group(box, 0);
         freeRamValue = row(settings, "Free memory for iOS", v -> toggleFreeRam());
         freeRamAggValue = row(settings, "Free memory: aggressive", v -> toggleFreeRamAggressive());
+        setupScreenValue = row(settings, "Keep screen on during setup", v -> toggleSetupScreen());
         wadbValue = row(settings, "Wireless debugging", v -> wirelessDebugging());
         ((View) wadbValue.getParent()).setVisibility(WirelessAdb.supported() ? View.VISIBLE : View.GONE);
         updateValue = row(settings, "Check for updates", v -> {
@@ -1433,6 +1434,7 @@ public class MainActivity extends Activity {
         // force-stop needs the adb shell of the pairing: without it the row is not there at all
         freeRamAggValue.setText(MemoryCleaner.aggressive(this) ? "On" : "Off");
         ((View) freeRamAggValue.getParent()).setVisibility(WirelessAdb.paired(this) ? View.VISIBLE : View.GONE);
+        setupScreenValue.setText(SetupService.keepScreen(this) ? "On" : "Off");
         int records = CrashReport.files(this).size();
         logsValue.setText(records == 0 ? "" : records == 1 ? "1 record" : records + " records");
         String pairing = WadbPairService.state;
@@ -1494,6 +1496,31 @@ public class MainActivity extends Activity {
                         + "\"Free memory for iOS\" on with it.")
                 .setPositiveButton("Turn on", (d, w) -> {
                     MemoryCleaner.setAggressive(this, true);
+                    showSettings();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * The setup's screen wake lock: the display stays on while a setup runs, even with another screen showing,
+     * so Android does not move the app to its slow cores when the screen sleeps. Default on; off here.
+     */
+    private void toggleSetupScreen() {
+        if (SetupService.keepScreen(this)) {
+            SetupService.setKeepScreen(this, false);
+            showSettings();
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Keep the screen on during a setup?")
+                .setMessage("While a setup runs, the app holds a screen wake lock: the display stays on even if another "
+                        + "screen is showing, so Android keeps the boot on its fast cores. It does not change the "
+                        + "brightness. The screen and the phone use more power and get warmer: turn the brightness down "
+                        + "and keep the phone on its charger. With this off, the setup screen still keeps the display on "
+                        + "while it is open.")
+                .setPositiveButton("Turn on", (d, w) -> {
+                    SetupService.setKeepScreen(this, true);
                     showSettings();
                 })
                 .setNegativeButton("Cancel", null)
