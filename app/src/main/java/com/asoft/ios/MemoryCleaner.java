@@ -26,8 +26,10 @@ import java.util.Set;
  * pairing the same is used on older Androids too.
  */
 final class MemoryCleaner {
-    private static final String PREFS = "asoft", KEY = "free_ram";
+    private static final String PREFS = "asoft", KEY = "free_ram", KEY_AGGRESSIVE = "free_ram_aggressive";
     private static final long PERIOD_MS = 90_000;
+    /** The aggressive round force-stops one app at a time: a hundred of them must not hit the adb timeout. */
+    private static final int AGGRESSIVE_TIMEOUT_MS = 180_000;
     private static Thread loop;
 
     private MemoryCleaner() {}
@@ -45,6 +47,22 @@ final class MemoryCleaner {
         prefs(c).edit().putBoolean(KEY, on).apply();
         if (on && Guest.running()) {
             start(c);
+        }
+    }
+
+    /**
+     * Force-stop the phone's other apps too (am force-stop through the pairing), not only their background
+     * processes: alarms, jobs and notifications stop with them and each starts from its first screen next time.
+     * Off by default; needs the pairing, since an app may not force-stop another.
+     */
+    static boolean aggressive(Context c) {
+        return WirelessAdb.paired(c) && prefs(c).getBoolean(KEY_AGGRESSIVE, false);
+    }
+
+    static void setAggressive(Context c, boolean on) {
+        prefs(c).edit().putBoolean(KEY_AGGRESSIVE, on).apply();
+        if (on) {
+            setEnabled(c, true);        // a force-stop round only runs inside the timer
         }
     }
 
@@ -162,15 +180,56 @@ final class MemoryCleaner {
         }
     }
 
+    /**
+     * One round before a setup boot (PhoneSetup26.startCool): iOS's DataMigration boots need the room more than
+     * any other step, and it is the step Android's memory killer has ended most often.
+     */
+    static void beforeBoot(Context c) {
+        if (!enabled(c) || !busy.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            round(c, "free memory before the boot", 30_000);
+        } finally {
+            busy.set(false);
+        }
+    }
+
+    /** What the aggressive round force-stops: every app a person starts, but Settings too (the way back). */
+    private static Set<String> aggressiveTargets(Context c) {
+        Set<String> apps = new HashSet<>(others(c));
+        apps.remove("com.android.settings");
+        apps.remove("com.samsung.android.settings");
+        apps.remove("com.google.android.settings");
+        return apps;
+    }
+
+    /** One adb shell command: force-stop each package in turn (am takes one). */
+    static String forceStopCommand(Set<String> apps) {
+        StringBuilder b = new StringBuilder("for p in");
+        for (String p : apps) {
+            b.append(' ').append(p);
+        }
+        return b.append("; do am force-stop \"$p\"; done").toString();
+    }
+
     private static void round(Context c, String what, int adbTimeoutMs) {
         ActivityManager am = c.getSystemService(ActivityManager.class);
         long before = availableMb(am);
         if (WirelessAdb.paired(c)) {
             try {
+                String forced = "";
+                if (aggressive(c)) {
+                    Set<String> apps = aggressiveTargets(c);
+                    if (!apps.isEmpty()) {
+                        WirelessAdb.shell(c, forceStopCommand(apps), Math.max(adbTimeoutMs, AGGRESSIVE_TIMEOUT_MS));
+                        forced = " and force-stopped " + apps.size() + " apps";
+                    }
+                }
                 WirelessAdb.shell(c, "am kill-all", adbTimeoutMs);
                 sleep(1500);
                 adbSaid = null;
-                AppLog.note(c, what + ": am kill-all through wireless adb, available " + before + " -> "
+                AppLog.note(c, what + ": am kill-all" + forced + " through wireless adb, available " + before + " -> "
                         + availableMb(am) + " MB");
                 return;
             } catch (java.io.IOException e) {
