@@ -1,7 +1,6 @@
 package com.asoft.ios;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 
 import java.util.Locale;
 
@@ -62,10 +61,15 @@ final class LowMemory {
     }
 
     /**
-     * Runs @go behind the memory sheet (MemoryBeforeStart): free of the phone's RAM, what the start takes, the
-     * apps that hold it, a one-tap kill-all and (when most of the RAM is in use) a force-stop, then Start.
+     * On a phone short of memory, runs @go behind the memory sheet (MemoryBeforeStart): free of the phone's RAM,
+     * what the start takes, the apps that hold it, a one-tap kill-all, then Start. With enough free, @go runs
+     * at once: the sheet is not one more tap before every quick resume.
      */
     static void askBeforeStart(Activity a, String what, long need, Runnable go) {
+        if (!isShort(Helper.available(a), need)) {
+            go.run();
+            return;
+        }
         MemoryBeforeStart.show(a, what, need, go);
     }
 }

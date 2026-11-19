@@ -2252,14 +2252,9 @@ final class Guest {
         } else {
             cmd.add("-device");
             cmd.add("usb-consumer,bus=xhci.0,port=3,id=ucons");
-            if (sb == null) {
-                // iOS 26's network: what the watch has had (WatchProfile.addNetwork). The vresearch machine makes
-                // this NIC from the command line (vresearch.c, virtio-net-pci) and slirp's DNS is the resolv.conf
-                // start/startSetup already writes. A setup boot gets none: it needs no network and stays the
-                // installer's, and a new PCI device is probed only by a boot, not by a quick save's resume.
-                cmd.add("-nic");
-                cmd.add("user,model=virtio-net-pci");
-            }
+            // No -nic: vresearch makes virtio-net-pci on slirp from QEMU's default NIC when none is given, the
+            // same card at the same PCI slot (vresearch.c), on setup boots as well; an explicit -nic changes
+            // nothing there. WatchProfile.addNetwork is for the watch's own machine.
         }
         cmd.add("-no-reboot");
         if ((c.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {

@@ -74,7 +74,7 @@ public class SetupService extends Service {
     }
 
     /** Acquires or releases the screen wake lock to match the switch and whether a setup runs. */
-    private void applyScreenLock() {
+    private synchronized void applyScreenLock() {
         boolean on = state.running && keepScreen(this);
         if (on && screenLock == null) {
             try {

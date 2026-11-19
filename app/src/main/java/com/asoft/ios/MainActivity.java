@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout box;
     private final Panel p26 = new Panel(Guest.IOS26), p16 = new Panel(Guest.IOS16), pWatch = new Panel(Guest.WATCH);
-    private TextView hint, powerWarn, freeRamValue, freeRamAggValue, setupScreenValue, wadbValue, updateValue, logsValue, footer, engineLog;
+    private TextView hint, powerWarn, freeRamValue, setupScreenValue, wadbValue, updateValue, logsValue, footer, engineLog;
     private LinearLayout updateBar, advanced;
     private TextView updateText, updateNote, updateGet, updateDismiss;
     /**
@@ -421,7 +421,6 @@ public class MainActivity extends Activity {
         heading(box, "Settings");
         LinearLayout settings = group(box, 0);
         freeRamValue = row(settings, "Free memory for iOS", v -> toggleFreeRam());
-        freeRamAggValue = row(settings, "Free memory: aggressive", v -> toggleFreeRamAggressive());
         setupScreenValue = row(settings, "Keep screen on during setup", v -> toggleSetupScreen());
         wadbValue = row(settings, "Wireless debugging", v -> wirelessDebugging());
         ((View) wadbValue.getParent()).setVisibility(WirelessAdb.supported() ? View.VISIBLE : View.GONE);
@@ -1431,9 +1430,6 @@ public class MainActivity extends Activity {
     private void showSettings() {
         boolean can = MemoryCleaner.supported(this);
         freeRamValue.setText(can ? MemoryCleaner.enabled(this) ? "On" : "Off" : "Pair first");
-        // force-stop needs the adb shell of the pairing: without it the row is not there at all
-        freeRamAggValue.setText(MemoryCleaner.aggressive(this) ? "On" : "Off");
-        ((View) freeRamAggValue.getParent()).setVisibility(WirelessAdb.paired(this) ? View.VISIBLE : View.GONE);
         setupScreenValue.setText(SetupService.keepScreen(this) ? "On" : "Off");
         int records = CrashReport.files(this).size();
         logsValue.setText(records == 0 ? "" : records == 1 ? "1 record" : records + " records");
@@ -1449,7 +1445,6 @@ public class MainActivity extends Activity {
             return;
         }
         if (MemoryCleaner.enabled(this)) {
-            MemoryCleaner.setAggressive(this, false);        // the round it belongs to is off
             MemoryCleaner.setEnabled(this, false);
             showSettings();
             return;
@@ -1465,37 +1460,6 @@ public class MainActivity extends Activity {
                         + "music or a call keeps running only if it shows a notification.")
                 .setPositiveButton("Turn on", (d, w) -> {
                     MemoryCleaner.setEnabled(this, true);
-                    showSettings();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    /**
-     * The aggressive half of "Free memory": through the pairing, force-stop every app a person starts, not only
-     * its background processes. For a phone whose memory iOS's setup leaves short (2026-11-17: 4 GB available on
-     * an 11.7 GB phone after am kill-all).
-     */
-    private void toggleFreeRamAggressive() {
-        if (!WirelessAdb.paired(this)) {
-            wirelessDebugging();
-            return;
-        }
-        if (MemoryCleaner.aggressive(this)) {
-            MemoryCleaner.setAggressive(this, false);
-            showSettings();
-            return;
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("Force-stop your other apps too?")
-                .setMessage("While iOS runs, every 90 s, this app will force-stop every app you start, not only end "
-                        + "its background processes: their alarms, jobs and notifications stop too, and each one starts "
-                        + "from its first screen when you open it again. Your launcher, keyboard, Settings and this app "
-                        + "are left alone.\n\nUse it when iOS is short of memory and Android keeps closing it. It needs "
-                        + "the Wireless debugging pairing (it is done through the phone's own adb shell), and it turns "
-                        + "\"Free memory for iOS\" on with it.")
-                .setPositiveButton("Turn on", (d, w) -> {
-                    MemoryCleaner.setAggressive(this, true);
                     showSettings();
                 })
                 .setNegativeButton("Cancel", null)

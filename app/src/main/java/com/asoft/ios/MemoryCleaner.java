@@ -26,10 +26,8 @@ import java.util.Set;
  * pairing the same is used on older Androids too.
  */
 final class MemoryCleaner {
-    private static final String PREFS = "asoft", KEY = "free_ram", KEY_AGGRESSIVE = "free_ram_aggressive";
+    private static final String PREFS = "asoft", KEY = "free_ram";
     private static final long PERIOD_MS = 90_000;
-    /** The aggressive round force-stops one app at a time: a hundred of them must not hit the adb timeout. */
-    private static final int AGGRESSIVE_TIMEOUT_MS = 180_000;
     private static Thread loop;
 
     private MemoryCleaner() {}
@@ -47,22 +45,6 @@ final class MemoryCleaner {
         prefs(c).edit().putBoolean(KEY, on).apply();
         if (on && Guest.running()) {
             start(c);
-        }
-    }
-
-    /**
-     * Force-stop the phone's other apps too (am force-stop through the pairing), not only their background
-     * processes: alarms, jobs and notifications stop with them and each starts from its first screen next time.
-     * Off by default; needs the pairing, since an app may not force-stop another.
-     */
-    static boolean aggressive(Context c) {
-        return WirelessAdb.paired(c) && prefs(c).getBoolean(KEY_AGGRESSIVE, false);
-    }
-
-    static void setAggressive(Context c, boolean on) {
-        prefs(c).edit().putBoolean(KEY_AGGRESSIVE, on).apply();
-        if (on) {
-            setEnabled(c, true);        // a force-stop round only runs inside the timer
         }
     }
 
@@ -197,39 +179,15 @@ final class MemoryCleaner {
         start(c);
     }
 
-    /** What the aggressive round force-stops: every app a person starts, but Settings too (the way back). */
-    private static Set<String> aggressiveTargets(Context c) {
-        Set<String> apps = new HashSet<>(others(c));
-        apps.remove("com.android.settings");
-        apps.remove("com.samsung.android.settings");
-        apps.remove("com.google.android.settings");
-        return apps;
-    }
-
-    /** One adb shell command: force-stop each package in turn (am takes one). */
-    static String forceStopCommand(Set<String> apps) {
-        StringBuilder b = new StringBuilder("for p in");
-        for (String p : apps) {
-            b.append(' ').append(p);
-        }
-        return b.append("; do am force-stop \"$p\"; done").toString();
-    }
-
     /**
-     * One round on the user's request (the memory sheet before a start): am kill-all, and with @force the
-     * force-stop of every app a person starts. Returns {available before, after} in MB; through the pairing
-     * when there is one, else the app's own killBackgroundProcesses (Android 13 and older, cached processes).
+     * One round on the user's request (the memory sheet before a start): am kill-all. Returns {available before,
+     * after} in MB; through the pairing when there is one, else the app's own killBackgroundProcesses (Android 13
+     * and older, cached processes).
      */
-    static long[] freeNow(Context c, boolean force, int timeoutMs) throws java.io.IOException {
+    static long[] freeNow(Context c, int timeoutMs) throws java.io.IOException {
         ActivityManager am = c.getSystemService(ActivityManager.class);
         long before = Helper.available(c) >> 20;
         if (WirelessAdb.paired(c)) {
-            if (force) {
-                Set<String> apps = aggressiveTargets(c);
-                if (!apps.isEmpty()) {
-                    WirelessAdb.shell(c, forceStopCommand(apps), Math.max(timeoutMs, AGGRESSIVE_TIMEOUT_MS));
-                }
-            }
             WirelessAdb.shell(c, "am kill-all", timeoutMs);
         } else {
             for (String p : others(c)) {
@@ -242,49 +200,6 @@ final class MemoryCleaner {
         }
         sleep(1500);
         // the same source as the sheet's "Free X of Y" (MemAvailable): ActivityManager's number can differ
-        return new long[] {before, Helper.available(c) >> 20};
-    }
-
-    /**
-     * The heavy system apps a force-stop may end without breaking the phone's own screen: One UI's capture,
-     * Bixby, the stores, the game services, Google's background apps. systemui, system, surfaceflinger, the
-     * launcher, the keyboard, Settings and this app are never in it.
-     */
-    static final String[] HEAVY_SYSTEM = {
-            "com.samsung.android.app.smartcapture",
-            "com.samsung.android.smartsuggestions",
-            "com.samsung.android.waterplugin",
-            "com.samsung.android.service.aircommand",
-            "com.samsung.android.app.spage",
-            "com.samsung.android.bixby.agent",
-            "com.samsung.android.bixby.wakeup",
-            "com.samsung.android.oneconnect",
-            "com.sec.android.app.samsungapps",
-            "com.samsung.android.game.gamehome",
-            "com.samsung.android.game.gos",
-            "com.samsung.android.game.gametools",
-            "com.samsung.android.app.tips",
-            "com.samsung.android.voc",
-            "com.samsung.android.app.reminder",
-            "com.sec.android.app.sbrowser",
-            "com.google.android.apps.turbo",
-            "com.google.android.googlequicksearchbox",
-            "com.google.android.apps.photos",
-            "com.google.android.youtube",
-            "com.google.android.gm",
-            "com.google.android.apps.maps",
-    };
-
-    /** One round of force-stop over {@link #HEAVY_SYSTEM}, for the sheet's extreme button; {before, after} MB. */
-    static long[] freeSystem(Context c, int timeoutMs) throws java.io.IOException {
-        long before = Helper.available(c) >> 20;
-        StringBuilder b = new StringBuilder("for p in");
-        for (String p : HEAVY_SYSTEM) {
-            b.append(' ').append(p);
-        }
-        b.append("; do am force-stop \"$p\"; done");
-        WirelessAdb.shell(c, b.toString(), Math.max(timeoutMs, AGGRESSIVE_TIMEOUT_MS));
-        sleep(1500);
         return new long[] {before, Helper.available(c) >> 20};
     }
 
@@ -410,18 +325,10 @@ final class MemoryCleaner {
         long before = availableMb(am);
         if (WirelessAdb.paired(c)) {
             try {
-                String forced = "";
-                if (aggressive(c)) {
-                    Set<String> apps = aggressiveTargets(c);
-                    if (!apps.isEmpty()) {
-                        WirelessAdb.shell(c, forceStopCommand(apps), Math.max(adbTimeoutMs, AGGRESSIVE_TIMEOUT_MS));
-                        forced = " and force-stopped " + apps.size() + " apps";
-                    }
-                }
                 WirelessAdb.shell(c, "am kill-all", adbTimeoutMs);
                 sleep(1500);
                 adbSaid = null;
-                AppLog.note(c, what + ": am kill-all" + forced + " through wireless adb, available " + before + " -> "
+                AppLog.note(c, what + ": am kill-all through wireless adb, available " + before + " -> "
                         + availableMb(am) + " MB");
                 return;
             } catch (java.io.IOException e) {

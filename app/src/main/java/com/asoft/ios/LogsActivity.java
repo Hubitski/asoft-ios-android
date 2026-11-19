@@ -404,8 +404,8 @@ public class LogsActivity extends Activity {
             return;
         }
         List<CrashText.Block> blocks = new ArrayList<>();
-        blocks.add(new CrashText.Block("The app's log, its last lines", lines, 1));
-        CrashReport.openIssue(this, CrashText.logTitle(line), "The app's log, from Logs", line, facts, blocks);
+        blocks.add(new CrashText.Block(s.title, lines, 1));
+        CrashReport.openIssue(this, CrashText.logTitle(line), s.title + ", from Logs", line, facts, blocks);
     }
 
     private void reportGpu(Shown s, LinkedHashMap<String, String> facts, List<String> lines) {
